@@ -14,15 +14,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-
 /**
  * Created by collin on 17-5-12.
  */
@@ -32,13 +24,21 @@ public class WebService extends AbstractVerticle{
 //    private JxXmlJsonReader _config;
 //    private Map<NetSocket, JxReceivedDataProcessor> _dataProcessors;
     private EventBus eventBus;
-    private String[] labels;
-    private int[] amount;
+    private String label;
+    private String[] labels = new String[5];
+    private int[] amout = new int[5];
+
+    private long testTime;
+    private int totalAmout;
+    private long averageInvokeTime;
+    private long invokeTime;
     private SimpleDateFormat formatter = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss:SSS");
     private long start;
     private long end;
     private double interval;
     private JSONObject barData = new JSONObject();
+
+    int total = 0;
 
     public static void main(String[] args) {
         Vertx vertx = Vertx.vertx();
@@ -80,60 +80,94 @@ public class WebService extends AbstractVerticle{
     }*/
 
     private void transData(RoutingContext context) {
-        amount = new int[6];
-        labels = new String[6];
         context.response().end("ok");
 //        JsonArray jsonArray = context.getBodyAsJsonArray();
         String s = context.getBodyAsString();
+        System.out.println(s);
         jsonArray = JSONArray.fromObject(s);
 //        System.out.println("s" + s);
         if (!jsonArray.isEmpty()) {
+            System.out.println(jsonArray.size());
             if (jsonArray.size() == 1) {
-                amount[0] ++;
-                labels[0] = getTime(jsonArray.getJSONObject(0));
+                testTime = jsonArray.getJSONObject(0).getLong("interval");
+                totalAmout = 1;
+                averageInvokeTime = jsonArray.getJSONObject(0).getLong("interval");
+
+                /*amount[0] ++;
+                delay[0] = jsonArray.getJSONObject(0).getLong("interval");
+                labels[0] = getTime(jsonArray.getJSONObject(0));*/
             } else {
                 start = (long)jsonArray.get(jsonArray.size() - 2);
                 end = (long)jsonArray.get(jsonArray.size() - 1);
+                testTime = end - start;
+                totalAmout = jsonArray.size();
                 interval = Math.rint((end - start) / 5);
 //                System.out.println("start:" + start + "  end:" + end + "  interval:" + interval);
 
-                long t1 = (long) (start + interval);
+                /*long t1 = (long) (start + interval);
                 long t2 = (long) (start + 2 * interval);
                 long t3 = (long) (start + 3 * interval);
                 long t4 = (long) (start + 4 * interval);
 
-                labels[0] = formatter.format(start).substring(11);
+                *//*labels[0] = formatter.format(start).substring(11);
                 labels[1] = formatter.format(t1).substring(11);
                 labels[2] = formatter.format(t2).substring(11);
                 labels[3] = formatter.format(t3).substring(11);
                 labels[4] = formatter.format(t4).substring(11);
-                labels[5] = formatter.format(end).substring(11);
+                labels[5] = formatter.format(end).substring(11);*/
+                label = formatter.format((Math.rint(start+end)/2)).substring(11);
+                /*labels[1] = formatter.format((Math.rint(t1+t2)/2)).substring(11);
+                labels[2] = formatter.format((Math.rint(t2+t3)/2)).substring(11);
+                labels[3] = formatter.format((Math.rint(t3+t4)/2)).substring(11);
+                labels[4] = formatter.format((Math.rint(t4+end)/2)).substring(11);*/
 
 //                System.out.println("t1:" + t1 + "  t2:" + t2 + "  t3:" + t3 + "  t4:" + t4);
 
                 for (int i = 0; i < jsonArray.size()-2; i++) {
-                    long iStart = getStartTime(jsonArray.getJSONObject(i));
-//                    System.out.println("istart:" + iStart);
-                    if (iStart < t1) {
-                        amount[1]++;
-                    } else if (iStart < t2) {
-                        amount[2]++;
-                    } else if (iStart < t3) {
-                        amount[3]++;
-                    } else if (iStart < t4) {
-                        amount[4]++;
-                    } else {
-                        amount[5]++;
-                    }
-                }
-                barData.put("barData", JSONArray.fromObject(amount));
-                barData.put("labels", JSONArray.fromObject(labels));
-                System.out.println(barData);
+                    long interval = jsonArray.getJSONObject(i).getLong("interval");
 
+                    invokeTime += interval;
+//                    System.out.println("istart:" + iStart);
+                    /*if (iStart < t1) {
+                        amount[0]++;
+                        delay[0] += interval;
+                    } else if (iStart < t2) {
+                        amount[1]++;
+                        delay[1] = delay[1] + interval;
+                    } else if (iStart < t3) {
+                        amount[2]++;
+                        delay[2] = delay[2] + interval;
+                    } else if (iStart < t4) {
+                        amount[3]++;
+                        delay[3] = delay[3] + interval;
+                    } else {
+                        amount[4]++;
+                        delay[4] = delay[4] + interval;
+                    }*/
+                }
+                averageInvokeTime = invokeTime/totalAmout;
             }
+
+            System.arraycopy(labels, 0, labels, 1, 4);
+            System.arraycopy(amout, 0, amout, 1, 4);
+            labels[0] = label;
+            amout[0] = totalAmout;
+            total += totalAmout;
+            System.out.println("total:" + total);
+            barData.put("barData", JSONArray.fromObject(amout));
+            barData.put("labels", JSONArray.fromObject(labels));
+            barData.put("totalAmount", totalAmout);
+            barData.put("averageInvokeTime", averageInvokeTime);
+            barData.put("testTime", testTime);
+//            barData.put("delay", JSONArray.fromObject(oldDelay));
+            System.out.println(barData.toString());
         }
 
-        eventBus.send("RealTimeSocket", barData.toString());
+        if (!barData.isEmpty()) {
+            eventBus.send("RealTimeSocket", barData.toString());
+            System.out.println("barData"+barData);
+        }
+        barData.clear();
 
     }
 

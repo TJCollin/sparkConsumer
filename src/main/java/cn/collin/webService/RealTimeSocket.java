@@ -16,6 +16,7 @@ public class RealTimeSocket extends AbstractVerticle{
     private EventBus eventBus;
     private HttpServer httpServer;
     static ServerWebSocket webSocket;
+
     @Override
     public void start() throws Exception {
         eventBus = vertx.eventBus();
@@ -46,17 +47,17 @@ public class RealTimeSocket extends AbstractVerticle{
     private void sendMessage(Message<String> stringMessage) {
         System.out.println("message:"+stringMessage.body());
         String result = stringMessage.body();
+        test(result);
         /*JSONArray data = JSONObject.fromObject(stringMessage.body()).getJSONArray("barData");
         JSONArray labels = JSONObject.fromObject(stringMessage.body()).getJSONArray("labels");
         JSONObject barData = new JSONObject();
         barData.put("barData", data);
         barData.put("labels", labels);
         System.out.println(barData.toString());*/
-        test(result);
     }
 
     public void test (String message) {
-        System.out.println("message1:"+message);
+//        System.out.println("message1:"+message);
         webSocket.writeTextMessage(message);
     }
 }
